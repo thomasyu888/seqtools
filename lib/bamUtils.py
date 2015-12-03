@@ -81,23 +81,35 @@ def name_sort_bam(bamFile,parallel=False, threads = 2,out_q=None):
                 out_q.put(False)
             
     
-def coordinate_sort_bam(bamFile):
+def coordinate_sort_bam(bamFile,parallel=False, threads = 2,out_q=None):
     """
     Taking a bamFile as input
     produce a coordinate sorted bam file
     """
     SUB = 'coordinate_sort_bam'
-    bamFile_coordinate_sorted_preifx = bamFile.replace('.bam','_cord_sorted')
-    bamFile_coordinate_sorted        = bamFile_coordinate_sorted_preifx + '.bam'
+    bamFile_coordinate_sorted_prefix = bamFile.replace('.bam','_cord_sorted')
+    bamFile_coordinate_sorted        = bamFile_coordinate_sorted_prefix + '.bam'
     if os.path.exists(bamFile_coordinate_sorted):
         print '[%s]: Bam file %s already coordinate sorted ' % (SUB,bamFile)
         return bamFile_coordinate_sorted
     else:
-        args = ['samtools','sort',bamFile,bamFile_coordinate_sorted_preifx]
-        return_code = subprocess.check_call(args) 
+        print '[%s]: Name sorting bam file %s' % (SUB,bamFile)
+        if parallel:
+            args = ['sambamba','sort','-t',str(threads),'-o',bamFile_coordinate_sorted,bamFile]
+        else:
+            args = ['samtools','sort',bamFile,bamFile_coordinate_sorted_prefix]
+
+        return_code = subprocess.check_call(args)  
         if return_code == 0:
             print '[%s]: Created coordinate sorted bam for %s' % (SUB,os.path.basename(bamFile))
+            if out_q:
+                out_q.put(bamFile_coordinate_sorted)
             return bamFile_coordinate_sorted
+        else:
+            print '[%s]: Error creating coordinate sorted bam for %s' % (SUB,os.path.basename(bamFile))
+            if out_q:
+                out_q.put(False)
+
 
 
 def remove_chr(bamFile,delete_original=False):
