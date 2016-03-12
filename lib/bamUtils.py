@@ -21,7 +21,8 @@ import tempfile
 import time
 import re
 import yaml
-
+import decimal
+from decimal import Decimal
 
 
 ##updating the library look up path
@@ -175,7 +176,36 @@ def get_library_complexity(bamFile, picardPath = "/opt/picard"):
     else:
         print "picard EstimateLibraryComplexity failed"
 
-
+def get_read_percentage(bamFileList, bedFile, output):
+    readPercentage = pd.DataFrame()
+    for bams in bamFileList:
+        bams = pybedtools.Bedtools(bamFile)
+        regions = pybedtools.Bedtools(bedFile)
+        coverage = regions.coverage(bams)
+        exonreads = 0
+        intronreads = 0
+        intergenicreads = 0
+        for i in coverage:
+            if i.name == "exon":
+                exonreads = int(i.fields[4])+exonreads
+            elif i.name == "intron":
+                intronreads = int(i.fields[4])+intronreads
+            elif i.name == "intergenic":
+                intergenicreads = int(i.fields[4])+intergenicreads
+        totalreads = exonreads + intronreads + intergenicreads
+        if totalreads != 0:
+            exon = Decimal(exonreads)/Decimal(totalreads)
+            intron = Decimal(intronreads)/Decimal(totalreads)
+            intergenic = Decimal(intergenicreads)/Decimal(totalreads)
+        else:
+            exon=0
+            intron=0
+            intergenicreads=0
+        print("exon=%f, intron=%f, intergenic=%f",%(exon, intron, intergenic))
+        reads = pd.DataFrame(dict(exon=exon,intron=intron,intergenic=intergenic),index=0)
+        readPercentage.append(reads)
+    readPercentage.to_csv("%s.csv"%output)
+    return("%s.csv"%output)
 
 def get_coverage_of_a_bam_file(bamFile,chr=None):
     '''
